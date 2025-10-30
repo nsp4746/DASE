@@ -1,0 +1,114 @@
+{
+  "company_name": "MetroGrid Manufacturing Co.",
+  "industry": "Industrial Manufacturing (OT/ICS)",
+  "location": "Dayton, OH",
+  "employee_count": 320,
+  "mission_statement": "Keeping the nation moving \u2014 precision parts, delivered on time.",
+  "nist_cybersecurity_tier": "Tier 1 - Partial",
+  "core_products": [
+    "Precision driveline components; plant-floor automation & MES integration"
+  ],
+  "key_personnel": [
+    {
+      "name": "Evelyn Park",
+      "role": "COO",
+      "notes": "Operations-first manager focused on throughput."
+    },
+    {
+      "name": "Ben Carter",
+      "role": "Director of Automation",
+      "notes": "Responsible for PLCs, SCADA, and OT segmentation."
+    },
+    {
+      "name": "Linda Cho",
+      "role": "VP IT",
+      "notes": "Runs corporate IT; IT/OT coordination limited."
+    },
+    {
+      "name": "Marco Ruiz",
+      "role": "Plant Network Engineer",
+      "notes": "Handles switches, VLANs, and Wi-Fi."
+    },
+    {
+      "name": "Tomas Alvarez",
+      "role": "Floor Supervisor",
+      "notes": "Often bypasses ticketing to get urgent fixes."
+    }
+  ],
+  "key_digital_assets": [
+    {
+      "asset": "SCADA / MES stack",
+      "notes": "Critical for scheduling and PLC command flow."
+    },
+    {
+      "asset": "PLC Fleet (Siemens, Allen-Bradley)",
+      "notes": "Production controllers on the plant floor."
+    },
+    {
+      "asset": "Engineering Workstations & CAD repos",
+      "sensitivity": "Proprietary IP",
+      "notes": "Design files and BOMs."
+    },
+    {
+      "asset": "ERP (on-prem VM)",
+      "notes": "Procurement, inventory, vendor invoices."
+    },
+    {
+      "asset": "Remote Maintenance VPN",
+      "notes": "Third-party vendor access tools"
+    }
+  ],
+  "technology_stack": {
+    "ot": [
+      "Siemens S7 PLCs",
+      "Allen-Bradley controllers",
+      "Wonderware/AVEVA SCADA",
+      "Profinet/Ethernet"
+    ],
+    "it": [
+      "VMware ESXi",
+      "Active Directory (Windows domain)",
+      "Corporate Wi-Fi (WPA2-Enterprise)"
+    ],
+    "network": "VLAN segmentation with some legacy flat stretches",
+    "remote_access": "VPN and third-party RMM for contractors",
+    "patch_management": "Windows monthly cadence; PLC firmware updated quarterly (manual)"
+  },
+  "security_posture": {
+    "segmentation": "Misconfigurations allow engineering VLAN or contractor VPN access to PLC subnets.",
+    "remote_vendor_access": "Shared vendor accounts and legacy remote tools lacking session isolation.",
+    "legacy_ot_devices": "Outdated PLC firmware with known CVEs; patching is risky.",
+    "identity_access_management": "Elevated access for plant technicians; no just-in-time privileges.",
+    "monitoring_visibility": "OT telemetry separated from corporate monitoring; no central SIEM for OT events.",
+    "backup_recovery": "Inconsistent PLC config backups; some stored on USB sticks (physical theft risk).",
+    "human_factor": "Production-first culture leads to overrides of safety interlocks and acceptance of remote instructions."
+  },
+  "adversary_training_brief": {
+    "high_value_objectives": [
+      "Disrupt production lines",
+      "Alter PLC setpoints",
+      "Exfiltrate CAD/BOM IP",
+      "Deploy ransomware targeting backups and ERP"
+    ],
+    "likely_initial_access": [
+      "Compromised contractor remote access",
+      "Phishing a plant engineer",
+      "USB drop on the shop floor"
+    ],
+    "privilege_escalation_persistence": [
+      "Use engineering workstation to access MES/SCADA credentials",
+      "Push malicious PLC programs",
+      "Create persistent RDP tunnels"
+    ],
+    "lateral_movement": [
+      "Move from engineering VLAN to PLC subnet via misconfigured firewall rules",
+      "Orchestrate coordinated controller changes"
+    ],
+    "detection_opportunities": [
+      "Unscheduled PLC code changes",
+      "Unusual vendor VPN sessions",
+      "Spikes in MES commands",
+      "Failed auth attempts to ERP/AD"
+    ]
+  }
+}

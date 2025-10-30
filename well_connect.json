@@ -1,0 +1,95 @@
+{
+  "company_name": "Well-Connect Solutions Inc.",
+  "industry": "Healthcare Technology",
+  "location": "Rochester, NY",
+  "employee_count": 40,
+  "mission_statement": "To empower small independent healthcare providers with affordable, secure, and user-friendly patient solutions",
+  "nist_cybersecurity_tier": "Tier 2 - Risk Informed",
+  "core_products": [
+    "Well-Connect Patient Portal"
+  ],
+  "key_personnel": [
+    {
+      "name": "Sara Jenkins",
+      "role": "CEO",
+      "notes": "Non-technical founder focused on growth and reputation."
+    },
+    {
+      "name": "David Chen",
+      "role": "CTO",
+      "notes": "Overworked; handles engineering, cloud, and cybersecurity."
+    },
+    {
+      "name": "Sofia Garcia",
+      "role": "Lead DevOps Engineer",
+      "notes": "Manages AWS infrastructure, CI/CD, and deployments."
+    },
+    {
+      "name": "Tim Allen",
+      "role": "IT Support Lead",
+      "notes": "Manages employee IT, laptops, and network access."
+    }
+  ],
+  "key_digital_assets": [
+    {
+      "asset": "Production Database (AWS RDS)",
+      "sensitivity": "PHI/PII",
+      "notes": "Subject to HIPAA"
+    },
+    {
+      "asset": "Well-Connect Application Source Code (GitHub)",
+      "notes": "Core intellectual property"
+    },
+    {
+      "asset": "CRM System (Salesforce)",
+      "notes": "Billing info and client contacts"
+    },
+    {
+      "asset": "Primary S3 Bucket",
+      "sensitivity": "PHI documents",
+      "notes": "Encrypted but access control concerns"
+    }
+  ],
+  "technology_stack": {
+    "cloud_provider": "AWS",
+    "compute": "Amazon EC2",
+    "database": "PostgreSQL on Amazon RDS",
+    "storage": "Amazon S3",
+    "backend": [
+      "Node.js",
+      "Python microservices"
+    ],
+    "frontend": "React.js",
+    "ci_cd": "Jenkins (self-hosted on EC2)",
+    "corporate_it": "Microsoft Office 365 (mix of Windows and macOS laptops)"
+  },
+  "security_posture": {
+    "incident_response": "Formal IR plan exists but untested and outdated; many employees untrained.",
+    "access_control": "MFA on GitHub and Office 365; inconsistent on Jenkins and AWS console for legacy admin accounts.",
+    "logging_and_monitoring": "CloudTrail and CloudWatch enabled; no centralized SIEM; logs rarely reviewed.",
+    "vulnerability_management": "Dependabot used; patching delayed; no formal production scanning.",
+    "network_security": "Limited segmentation between development and production.",
+    "human_factor": "High implicit trust; susceptible to social engineering."
+  },
+  "adversary_training_brief": {
+    "high_value_objectives": [
+      "Exfiltrate PHI/PII",
+      "Compromise source code",
+      "Access patient documents in S3"
+    ],
+    "likely_initial_access": [
+      "Phishing",
+      "Credential theft (legacy admin accounts)",
+      "Misconfigured AWS/S3 permissions"
+    ],
+    "lateral_movement": [
+      "Compromise Jenkins or GitHub to alter CI/CD",
+      "Retrieve long-lived credentials to access RDS/S3"
+    ],
+    "detection_opportunities": [
+      "Anomalous S3 access patterns",
+      "Unexpected CI/CD pipeline changes",
+      "Unusual RDS queries"
+    ]
+  }
+}

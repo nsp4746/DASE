@@ -1,0 +1,116 @@
+{
+  "company_name": "AeroPay Financial Services LLC",
+  "industry": "Financial Technology (Fintech)",
+  "location": "Charlotte, NC",
+  "employee_count": 85,
+  "mission_statement": "Secure, low-fee payments and fast settlements for SMBs while enabling easy developer integration.",
+  "nist_cybersecurity_tier": "Tier 3 - Repeatable",
+  "core_products": [
+    "Payments API",
+    "Merchant Dashboard",
+    "Recurring Billing"
+  ],
+  "key_personnel": [
+    {
+      "name": "Markus Lee",
+      "role": "CEO",
+      "notes": "Ex-payments founder; growth and partnerships focused."
+    },
+    {
+      "name": "Priya Kapoor",
+      "role": "CTO",
+      "notes": "Leads engineering and platform; understaffed on security."
+    },
+    {
+      "name": "Rafael Ortega",
+      "role": "Head of Risk & Fraud",
+      "notes": "Owns fraud models and dispute workflows."
+    },
+    {
+      "name": "Dana Myers",
+      "role": "SRE Lead",
+      "notes": "Manages production infra and incident triage."
+    },
+    {
+      "name": "Jamal Wright",
+      "role": "IT & Compliance",
+      "notes": "Handles PCI evidence collection and compliance tasks."
+    }
+  ],
+  "key_digital_assets": [
+    {
+      "asset": "Payment Processing API",
+      "notes": "Public-facing endpoints; primary revenue stream."
+    },
+    {
+      "asset": "Transaction Ledger DB (Postgres)",
+      "sensitivity": "High",
+      "notes": "Authoritative transaction records and settlement details."
+    },
+    {
+      "asset": "Fraud Model & Training Data (S3)",
+      "sensitivity": "Proprietary",
+      "notes": "Contains labeled fraud cases and training data."
+    },
+    {
+      "asset": "Merchant Dashboard & Source Repo (GitHub Enterprise)",
+      "notes": "UI and API clients"
+    },
+    {
+      "asset": "Secrets Vault (HashiCorp Vault-lite)",
+      "notes": "Partially rolled out; some legacy secrets remain."
+    }
+  ],
+  "technology_stack": {
+    "cloud_provider": "AWS (EKS, RDS, S3)",
+    "compute": "Kubernetes (EKS) + AWS Lambda for webhooks",
+    "database": "Postgres (RDS)",
+    "storage": "S3",
+    "backend": [
+      "Go (payments engine)",
+      "Python (fraud orchestration)",
+      "Node.js (API gateway)"
+    ],
+    "frontend": "React + Next.js",
+    "auth_identity": "OAuth2 for API clients; Okta SSO (partial)",
+    "ci_cd": "GitHub Actions -> Helm releases to EKS",
+    "observability": [
+      "Prometheus",
+      "Grafana",
+      "CloudWatch"
+    ],
+    "data_pipeline": "Kafka (managed) for transaction events"
+  },
+  "security_posture": {
+    "access_control": "Okta SSO in use, but several service/admin accounts bypass SSO; MFA inconsistently applied.",
+    "secrets_management": "Vault exists but some legacy services have embedded secrets in Kubernetes/Helm charts.",
+    "public_attack_surface": "Complex webhook flows; potential input validation and rate-limiting issues.",
+    "third_party_risk": "Heavy reliance on KYC and payment gateway partners; weak webhook verification risk.",
+    "logging_and_detection": "Basic infra alerting; no robust behavioral detection for anomalous API usage.",
+    "devops_practices": "Direct merges to main for some teams; limited pre-prod testing for edge cases."
+  },
+  "adversary_training_brief": {
+    "high_value_objectives": [
+      "Exfiltrate transaction ledger",
+      "Create fraudulent payouts",
+      "Poison fraud model or suppress detection"
+    ],
+    "likely_initial_access": [
+      "Credential stuffing against Okta",
+      "Phishing support staff",
+      "Compromised partner webhook"
+    ],
+    "privilege_escalation_persistence": [
+      "Compromise GitHub to change CI/CD workflows",
+      "Retrieve Vault tokens from developer laptops"
+    ],
+    "lateral_movement": [
+      "Use compromised service account to access Kafka or Lambda functions that process payouts"
+    ],
+    "detection_opportunities": [
+      "Unusual API traffic patterns",
+      "Anomalous CI changes",
+      "Unexpected S3 access"
+    ]
+  }
+}
