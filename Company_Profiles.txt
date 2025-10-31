@@ -1,0 +1,151 @@
+﻿Fictional Company Profiles — Adversary Training
+This document contains three target company profiles formatted for adversary simulation and blue-team training. Each profile includes: Company Overview, Key Personnel, Key Digital Assets, Technology Stack, Security Posture & Potential Vulnerabilities, and an Adversary-Training Brief with likely attacker goals and attack paths.
+1. Well-Connect Solutions Inc. (Healthcare Tech)
+Company Overview
+• Name: Well-Connect Solutions Inc.
+• Industry: Healthcare Technology
+• Location: Rochester, NY
+• Employee Count: 40
+• Mission: “To empower small independent healthcare providers with affordable, secure, and user-friendly patient solutions”
+• Core Product: Well-Connect Patient Portal — cloud-based SaaS providing secure patient messaging, appointment scheduling, and electronic bill pay.
+• NIST Cybersecurity Tier: Tier 2 (Risk Informed) — some risk management practices approved, but organization-wide approach not consistently applied.
+Key Personnel
+• Sara Jenkins, CEO — non-technical founder focused on growth and reputation.
+• David Chen, CTO — technical founder handling engineering, cloud architecture, and cybersecurity (overworked).
+• Sofia Garcia, Lead DevOps Engineer — manages AWS infrastructure, CI/CD, and deployments.
+• Tim Allen, IT Support Lead — handles employee IT (laptops, Microsoft 365, network access).
+Key Digital Assets
+• Production Database (AWS RDS) — contains PHI and PII (HIPAA scope).
+• Application Source Code (GitHub) — core IP.
+• CRM (Salesforce) — billing and client contact data.
+• Primary S3 Bucket — stores patient documents (encrypted; access control concerns).
+Technology Stack
+• Cloud: AWS
+• Compute: EC2
+• Database: PostgreSQL on RDS
+• Storage: S3
+• Backend: Node.js + Python microservices
+• Frontend: React.js
+• CI/CD: Jenkins (self-hosted on EC2)
+• Corporate IT: Microsoft 365 (Windows & macOS laptops)
+Security Posture & Potential Vulnerabilities
+• Incident response plan exists but is out of date and untested; many employees untrained.
+• No dedicated security team; CTO acts as CISO in name only.
+• MFA enforced on GitHub and Office 365 but not consistently on Jenkins or AWS console for legacy admin accounts.
+• Basic CloudTrail and CloudWatch logging enabled, but no centralized SIEM and logs are rarely reviewed.
+• Dependabot used for OSS vulnerabilities but patching is delayed; no formal vulnerability scanning of production.
+• AWS environment has limited segmentation between dev and prod.
+• High implicit trust culture makes social engineering likely.
+Adversary-Training Brief
+High-value objectives: Exfiltrate PHI/PII, obtain source code or API keys, and manipulate patient documents or billing data.
+Likely initial access: Phishing against staff, credential theft from legacy admin accounts, or exploitation of misconfigured S3/AWS permissions.
+Lateral movement & persistence: Compromise Jenkins or GitHub to alter CI/CD, or retrieve long-lived credentials to access RDS/S3.
+Detection opportunities: Unusual S3 access patterns, unexpected CI pipeline changes, or anomalous RDS queries.
+________________
+
+
+2. AeroPay Financial Services LLC (Fintech)
+Company Overview
+• Name: AeroPay Financial Services LLC
+• Industry: Financial technology (online payments & merchant services)
+• Location: Charlotte, NC
+• Employee Count: 85
+• Mission: “Secure, low-fee payments and fast settlements for SMBs while enabling easy developer integration.”
+• Core Products: Payments API, recurring billing, merchant dashboard.
+• Regulatory Notes: PCI DSS scoped (SAQ A-EP), FinCEN registration for money services.
+• NIST Cybersecurity Tier: Tier 3 (Repeatable) — documented practices, not fully standardized across teams.
+Key Personnel
+• Markus Lee, CEO — ex-payments founder focused on growth.
+• Priya Kapoor, CTO — product-focused, understaffed on security.
+• Rafael Ortega, Head of Risk & Fraud — owns fraud models.
+• Dana Myers, SRE Lead — manages infra and on-call.
+• Jamal Wright, IT & Compliance — small team handling PCI evidence.
+Key Digital Assets
+• Payment Processing API (public endpoints) — revenue stream.
+• Transaction Ledger DB (Postgres) — transaction and settlement records.
+• Fraud Model & Training Data (S3) — labeled fraud cases and models.
+• Merchant Dashboard & Source Repo (GitHub Enterprise).
+• Secrets Vault (HashiCorp Vault-lite) — partially rolled out.
+• Third-party Integrations: KYC provider, payment gateways, analytics.
+Technology Stack
+• Cloud: AWS (EKS, RDS, S3)
+• Compute: Kubernetes (EKS) + Lambdas
+• Backend: Go (payments engine), Python (fraud), Node.js (API gateway)
+• Frontend: React + Next.js
+• Auth: OAuth2 for API clients; Okta SSO (some admin accounts not onboarded)
+• CI/CD: GitHub Actions -> Helm to EKS
+• Observability: Prometheus, Grafana, CloudWatch; no centralized SIEM
+• Data Pipelines: Kafka for transaction events.
+Security Posture & Potential Vulnerabilities
+• Okta used but several service/admin accounts bypass SSO; MFA inconsistently applied.
+• Some legacy services contain embedded secrets in Kubernetes/Helm instead of Vault.
+• Payment API complex webhook flows — potential input validation, idempotency, and rate-limiting issues.
+• Heavy reliance on third-party KYC/payment gateways — weak webhook verification could allow supply-chain compromise.
+• Centralized S3 with fraud model data accessible to few engineers — data leakage risk.
+• CI allows direct merges for some teams; insufficient pre-prod testing for edge cases.
+• IR playbooks exist but are not updated for payment-fraud scenarios.
+• Sales/support staff may issue temporary API keys or disable fraud flags to assist merchants (social engineering risk).
+Adversary-Training Brief
+High-value objectives: Exfiltrate transaction ledger, create fraudulent payouts, obtain merchant API keys, or poison the fraud model.
+Likely initial access: Credential stuffing on Okta, phishing support staff, abuse of partner webhook.
+Privilege escalation & persistence: Compromise GitHub to change CI/CD, retrieve Vault tokens from developer laptops.
+Lateral movement: Use compromised service account to access Kafka or lambdas that process payouts.
+Detection opportunities: Unusual API traffic patterns, anomalous CI changes, or unexpected S3 access.
+________________
+
+
+3. MetroGrid Manufacturing Co. (Industrial / OT)
+Company Overview
+• Name: MetroGrid Manufacturing Co.
+• Industry: Industrial manufacturing (automotive components + light industrial automation)
+• Location: Dayton, OH
+• Employee Count: 320
+• Mission: “Keeping the nation moving — precision parts, delivered on time.”
+• Core Products: Precision driveline components; integrated plant floor automation (PLC/SCADA).
+• NIST Cybersecurity Tier: Tier 1 (Partial) — ad hoc security, limited enforcement.
+Key Personnel
+• Evelyn Park, COO — operations-focused.
+• Ben Carter, Director of Automation — controls & PLCs.
+• Linda Cho, VP IT — corporate IT lead; limited IT/OT coordination.
+• Marco Ruiz, Plant Network Engineer — manages plant networking.
+• Tomás Alvarez, Floor Supervisor — influential plant-floor actor.
+Key Digital & Physical Assets
+• SCADA / MES stack — critical for scheduling & PLC command flow.
+• PLC Fleet — Siemens & Allen-Bradley controllers on production lines.
+• Engineering Workstations & CAD repos — design files and BOMs.
+• ERP (on-prem VM) — procurement, inventory, vendor invoices.
+• Guest Wi-Fi & BYOD — poor segmentation.
+• Remote Maintenance VPN — third-party vendor access tools.
+Technology Stack (IT + OT)
+• OT: Siemens S7 PLCs, Rockwell controllers, Wonderware/AVEVA SCADA; Profinet.
+• IT: VMware ESXi, Active Directory, corporate Wi-Fi (WPA2-Enterprise).
+• Network: VLAN segmentation exists but misconfigurations leave PLCs reachable.
+• Remote Access: VPN & third-party RMM.
+• Patch Management: Windows monthly; PLC firmware updated quarterly (manual).
+Security Posture & Potential Vulnerabilities
+• Segmentation weaknesses: misconfigurations allow engineering VLAN or contractor VPN access to PLC subnets.
+• Remote vendor access: shared vendor accounts and legacy remote tools lacking session isolation.
+• Legacy OT devices: outdated PLC firmware with known CVEs; patching is high-risk.
+• IAM: elevated access for plant technicians; no just-in-time privileges.
+• Monitoring: OT telemetry isolated from corporate monitoring; no central SIEM for OT events.
+• Backup: PLC config backups inconsistent; some stored on USB sticks (physical theft risk).
+• Human factor: production-first culture leads to overrides of safety interlocks and acceptance of remote instructions.
+• Physical security: some gates propped open during shifts.
+Adversary-Training Brief
+High-value objectives: Disrupt production lines, alter PLC setpoints, exfiltrate CAD/BOM IP, or deploy ransomware targeting backups and ERP.
+Likely initial access: Compromised contractor remote access, phishing a plant engineer, or USB drop.
+Privilege escalation & persistence: Use engineering workstation to access MES/SCADA creds, push malicious PLC programs, create persistent RDP tunnels.
+Lateral movement: Move from engineering VLAN to PLC subnet through misconfigured firewalls; orchestrate coordinated controller changes.
+Detection opportunities: Unscheduled PLC code changes, unusual vendor VPN sessions, spikes in MES commands, or failed auth attempts to ERP/AD.
+________________
+
+
+Appendix: Example Prompt Templates
+Use these templates when instantiating AI adversary agents for tabletop or simulation exercises. Always include safety constraints prohibiting real-world harm or exploitation of live systems.
+1) Reconnaissance prompt (AeroPay):
+"You are a red-team agent targeting AeroPay Financial Services LLC. Your objective is to map public-facing attack surface and identify probable initial access vectors suitable for a tabletop exercise. Do not provide exploit code or step-by-step weaponization. Provide reconnaissance steps, likely weak spots, and defensive recommendations."
+2) Initial Access prompt (MetroGrid):
+"You are an adversary simulation assessing MetroGrid Manufacturing Co. Focus on social engineering and vendor-based initial access pathways. Describe likely phishing or vendor compromise scenarios at a high-level; include suggested detection signals and mitigations. Do not include instructions for physical harm or malware creation."
+
+---
+Generated by ChatGPT. Profiles incorporate the user-provided Well-Connect example as a baseline and two additional target company profiles tailored for adversary training scenarios.

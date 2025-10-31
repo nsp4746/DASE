@@ -1,9 +1,11 @@
 import json
 import os
 from typing import Any, Dict, List
+from rich import print_json
 
 DATA_DIR = os.path.dirname(__file__)
-FILES = ["well_connect.json","aeropay.json","metrogrid.json"]
+FILES = ["well_connect.json", "aeropay.json", "metrogrid.json"]
+
 
 def read_from_file(filepath):
     """
@@ -30,6 +32,7 @@ def read_from_file(filepath):
         print(f"Error reading file '{filepath}': {e}")
         raise
 
+
 def load_all_profiles(data_dir: str = DATA_DIR) -> List[Dict[str, Any]]:
     """
     Loads and aggregates profiles from multiple JSON files in the specified directory.
@@ -38,7 +41,7 @@ def load_all_profiles(data_dir: str = DATA_DIR) -> List[Dict[str, Any]]:
         data_dir (str): The directory containing the JSON files.
 
     Returns:
-        List[Dict[str, Any]]: A list of profiles loaded from the JSON files.    
+        List[Dict[str, Any]]: A list of profiles loaded from the JSON files.
     """
     profiles = []
     for fname in FILES:
@@ -49,6 +52,118 @@ def load_all_profiles(data_dir: str = DATA_DIR) -> List[Dict[str, Any]]:
             profiles.append(json.load(f))
     return profiles
 
+
 PROFILES = load_all_profiles()
 
-print(PROFILES)
+
+def get_company(name: str) -> Dict[str, Any] | None:
+    name_lower = name.strip().lower()
+    for profile in PROFILES:
+        if name_lower in profile.get("company_name", "").lower():
+            return profile
+    return None
+
+
+def get_tech_stack(company_name: str) -> Dict[str, Any] | None:
+    comp = get_company(company_name)
+    if not comp:
+        return None
+    return comp.get("technology_stack")
+
+
+def search_companies_by_tech(tech_keyword: str) -> List[str]:
+    tech_keyword = tech_keyword.lower()
+    matches = []
+    for p in PROFILES:
+        tech = p.get("technology_stack", {})
+        # flatten tech values to a single searchable string
+
+        def flatten(obj):
+            if isinstance(obj, dict):
+                vals = []
+                for v in obj.values():
+                    vals.append(flatten(v))
+                return " ".join(vals)
+            if isinstance(obj, list):
+                return " ".join([flatten(x) for x in obj])
+            return str(obj)
+        tech_blob = flatten(tech).lower()
+        if tech_keyword in tech_blob:
+            matches.append(p.get("company_name"))
+    return matches
+
+
+def find_person_by_role(company_name: str, role_keyword: str) -> List[Dict[str, Any]]:
+    comp = get_company(company_name)
+    if not comp:
+        return []
+    out = []
+    for person in comp.get("key_personnel", []):
+        if role_keyword.lower() in person.get("role", "").lower() or role_keyword.lower() in person.get("name", "").lower():
+            out.append(person)
+    return out
+
+
+def get_assets_by_sensitivity(company_name: str, sensitivity_keyword: str) -> List[Dict[str, Any]]:
+    comp = get_company(company_name)
+    if not comp:
+        return []
+    out = []
+    for asset in comp.get("key_digital_assets", []):
+        if sensitivity_keyword.lower() in str(asset).lower():
+            out.append(asset)
+    return out
+
+
+def pretty_print(obj):
+    if isinstance(obj, (dict, list)):
+        print_json(data=obj)
+    else:
+        print(obj)
+
+def repl():
+    print("Simple company JSON REPL. Examples:\n - tech AeroPay\n - search-tech aws\n - person 'AeroPay' 'CTO'\n - assets 'Well-Connect' PHI\n - exit")
+    while True:
+        try:
+            raw = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nbye")
+            break
+        if not raw:
+            continue
+        if raw.lower() in ("exit", "quit"):
+            break
+        parts = raw.split()
+        cmd = parts[0].lower()
+        args = parts[1:]
+        if cmd == "tech" and args:
+            name = " ".join(args)
+            ts = get_tech_stack(name)
+            if ts is None:
+                print(f"Company not found: {name}")
+            else:
+                pretty_print(ts)
+        elif cmd == "search-tech" and args:
+            kw = " ".join(args)
+            matches = search_companies_by_tech(kw)
+            print("Matches:", matches or "None")
+        elif cmd == "person" and len(args) >= 2:
+            name = args[0]
+            role_kw = " ".join(args[1:])
+            persons = find_person_by_role(name, role_kw)
+            pretty_print(persons or f"No persons found with role '{role_kw}' in {name}")
+        elif cmd == "assets" and len(args) >= 2:
+            name = args[0]
+            sens = " ".join(args[1:])
+            assets = get_assets_by_sensitivity(name, sens)
+            pretty_print(assets or f"No assets found with '{sens}' in {name}")
+        elif cmd == "list":
+            print([p.get("company_name") for p in PROFILES])
+        else:
+            print("Unknown command. Try: tech, search-tech, person, assets, list, exit")
+
+if __name__ == "__main__":
+    if not PROFILES:
+        print("No profiles loaded. Ensure JSON files are in the script directory.")
+    else:
+        repl()
