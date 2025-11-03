@@ -41,7 +41,8 @@ def generate(user_input, company_profile):
         contents=conversation_history,
         config=generate_content_config,
     ):
-        print(chunk.text, end="", flush=True)
+       # print(chunk.text, end="", flush=True)
+        yield chunk.text
         full_response += chunk.text
     
     conversation_history.append(
@@ -50,7 +51,6 @@ def generate(user_input, company_profile):
             parts=[types.Part.from_text(text=full_response)]
         )
     )
-    print("\n")
 
 if __name__ == "__main__":
     print("=========DASE Gemini Interface============")
