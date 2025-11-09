@@ -23,8 +23,6 @@ def generate(user_input, company_profile):
 
     # Combine the base prompt with the company profile
     base_prompt = utils.read_from_file("prompt.txt")
-    # Find the marker and insert the company profile
-    marker = "**Use the following company profile (Well-Connect Solutions Inc.) for the current session:**"
         
     final_prompt = company_profile + "\n" + base_prompt
 

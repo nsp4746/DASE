@@ -32,9 +32,6 @@ dpg.create_context()
 dpg.create_viewport(title='DASE Gemini Interface', width=800, height=700)
 dpg.setup_dearpygui()
 
-# dpg.enable_docking() 
-# dpg.enable_dpi_aware()
-
 # --- Visual Constants / Helpers ---
 WRAP_PAD = 20
 USER_COLOR = (82, 156, 255, 255)
