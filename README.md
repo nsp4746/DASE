@@ -1,7 +1,7 @@
 # DASE  
 **MS Project**  
 
-This project provides a **robust and scalable solution** for **data analysis and system engineering**.
+This is project seeks to introduce dynamic incident response trainings. 
 
 ---
 
