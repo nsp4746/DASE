@@ -2,8 +2,10 @@ import utils, os
 import json
 from google import genai
 from google.genai import types
+from dotenv import load_dotenv
 
 conversation_history = []
+load_dotenv()
 
 def generate(user_input, company_profile):
 
@@ -12,7 +14,7 @@ def generate(user_input, company_profile):
         parts=[types.Part.from_text(text=user_input)]
     ))
     client = genai.Client(
-        api_key=os.environ.get("GEMINI_API_KEY"),
+        api_key=os.getenv("GEMINI_API_KEY"),
     )
 
     model = "gemini-2.5-flash"

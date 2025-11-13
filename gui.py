@@ -46,19 +46,16 @@ def _find_system_font() -> str | None:
     system = platform.system()
     
     if system == "Windows":
-        # Segoe UI is the standard. Arial is a safe fallback.
         font_paths = [
             r"C:\Windows\Fonts\segoeui.ttf",
             r"C:\Windows\Fonts\arial.ttf"
         ]
     elif system == "Darwin": # macOS
-        # Helvetica is standard on macOS.
         font_paths = [
             "/System/Library/Fonts/Helvetica.ttc",
             "/System/Library/Fonts/Menlo.ttc"
         ]
-    else: # Linux
-        # DejaVu and Liberation are common and high-quality.
+    else:
         font_paths = [
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
@@ -75,7 +72,6 @@ def _find_system_font() -> str | None:
 
 
 def wrap_width(tag: str, pad: int = WRAP_PAD) -> int:
-    # (Your function is fine, no changes needed)
     w = dpg.get_item_width(tag)
     try:
         w_int = int(w)
@@ -100,12 +96,10 @@ def install_theme_and_fonts(scale: float):
     Args:
         scale (float): The detected DPI scale factor (e.g., 1.0, 1.5).
     """
-    # Simple dark theme with comfortable, SCALED spacing
     with dpg.theme() as app_theme:
         with dpg.theme_component(dpg.mvAll):
             dpg.add_theme_color(dpg.mvThemeCol_Text, (230, 230, 230, 255))
             dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (24, 24, 27, 255))
-            # Scale all style variables
             dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, round(6 * scale))
             dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, round(6 * scale), round(6 * scale))
             dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, round(8 * scale), round(8 * scale))
@@ -116,10 +110,8 @@ def install_theme_and_fonts(scale: float):
             dpg.add_theme_color(dpg.mvThemeCol_ChildBg, (18, 18, 20, 255))
     dpg.bind_theme(app_theme)
 
-    # Try to find and load a high-quality system font
     font_path = _find_system_font()
     
-    # Scale the font size. This gives MUCH sharper text than set_global_font_scale()
     base_font_size = 18
     scaled_font_size = int(base_font_size * scale)
     print(f"Loading font at {scaled_font_size}px (Base: {base_font_size}px * Scale: {scale})")
@@ -128,7 +120,6 @@ def install_theme_and_fonts(scale: float):
         default_font = None
         if font_path:
             try:
-                # Add the font at the correctly scaled size
                 default_font = dpg.add_font(font_path, scaled_font_size)
             except Exception as e:
                 print(f"Error loading font {font_path}: {e}")
@@ -137,11 +128,10 @@ def install_theme_and_fonts(scale: float):
         if default_font is not None:
             dpg.bind_font(default_font)
         else:
-            # Fallback: Use default font and scale it (will be blurrier)
             print("Binding default font and using set_global_font_scale as fallback.")
-            default_font = dpg.add_font(tag="default_font") # Get default
+            default_font = dpg.add_font(tag="default_font") 
             dpg.bind_font(default_font)
-            dpg.set_global_font_scale(scale) # Blurry, but correctly-sized
+            dpg.set_global_font_scale(scale)
 
 # def install_theme_and_fonts():
     """Install a light readability theme and try to bind a clean UI font.
@@ -242,16 +232,13 @@ def send_message_callback():
     if not user_input:
         return
 
-    # Add user message to chat display
     dpg.add_text(
         f"User: {user_input}",
         parent="chat_display",
         color=USER_COLOR,
         wrap=wrap_width("chat_display")
     )
-    dpg.set_value("user_input", "") # Clear input field
-
-    # Prepare the prompt (first message includes context)
+    dpg.set_value("user_input", "") 
     if step == 0:
         company_name = dpg.get_value("company_combo")
         full_prompt = (
@@ -261,13 +248,10 @@ def send_message_callback():
     else:
         full_prompt = user_input
 
-    # Increment step for every message to ensure unique tags
     step += 1
 
-    # Generate a unique tag for the model's response text widget
     model_response_tag = f"model_response_{step}"
 
-    # Add model response placeholder
     dpg.add_text(
         "DASE: ",
         parent="chat_display",
@@ -276,12 +260,10 @@ def send_message_callback():
         wrap=wrap_width("chat_display")
     )
 
-    # Run model generation in a separate thread to keep the GUI responsive
     def stream_response():
         full_response_text = "DASE: "
         for chunk in gemini.generate(full_prompt, company_profile_str):
             full_response_text += chunk
-            # Check if the item still exists before trying to set its value
             if dpg.does_item_exist(model_response_tag):
                 dpg.set_value(model_response_tag, full_response_text)
 
@@ -317,7 +299,7 @@ with dpg.window(label="Setup", tag="setup_window", width=800, height=700):
 
 with dpg.window(label="Chat", tag="chat_window", show=False, width=800, height=700):
     with dpg.child_window(tag="chat_display", height=-70):
-        pass # Chat messages will be added here dynamically
+        pass 
 
     with dpg.group(horizontal=True):
         dpg.add_input_text(
@@ -325,7 +307,7 @@ with dpg.window(label="Chat", tag="chat_window", show=False, width=800, height=7
             hint="Type your message here...",
             on_enter=True,
             callback=send_message_callback,
-            width=-120 # Fill width leaving space for buttons
+            width=-120
         )
         dpg.add_button(label="Send", callback=send_message_callback, width=50)
         dpg.add_button(label="End", callback=back_to_setup_callback, width=50)

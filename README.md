@@ -7,7 +7,7 @@ This project provides a **robust and scalable solution** for **data analysis and
 
 ## 🚀 How to Run
 
-### 1. **Install Python (v3.12.5 or later)**  
+### 1. **Install Python (3.12 - 3.13)**  
    You can download it from [python.org/downloads](https://www.python.org/downloads/).
 
 ### 2. **Install dependencies**  
