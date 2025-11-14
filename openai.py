@@ -1,5 +1,11 @@
 from openai import OpenAI
 import json 
+'''
+
+Not updated file, please gui.py for most up to data version of DASE client. 
+
+'''
+
 
 class DASEClient:
     def __init__(self, prompt_id, difficulty="low", reactions="2"):

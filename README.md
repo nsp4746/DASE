@@ -22,5 +22,8 @@ This is project seeks to introduce dynamic incident response trainings.
 - Obtain a free API key from [Google AI Studio](https://aistudio.google.com).  
 - Create a ```.env``` file in the root directory, examine .env.example to understand the structure of this file.
 
-### 5. Run gui.py
-  
+### 5. Run gui.py  
+
+
+## Insure that the file directory matches this 
+[File Dir](./images/directory_setup.png)

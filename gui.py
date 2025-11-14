@@ -23,6 +23,7 @@ if platform.system() == "Windows":
     except Exception as e:
         print(f"Warning: Could not set DPI awareness. {e}")
 elif platform.system() == "Darwin":
+    scale = 1.0 # Temp Fix for macOS DPI
     print("macOS detected. Dear PyGui should handle DPI scaling automatically.")
 
 else:
@@ -163,6 +164,7 @@ def install_theme_and_fonts(scale: float):
     dpg.set_global_font_scale(1.05)
     
 # install theme/fonts before building any UI
+
 install_theme_and_fonts(scale)
 
 # --- Global State ---
@@ -193,7 +195,7 @@ def start_session_callback():
     if not company_file:
         print("Invalid company selection.")
         return
-
+    company_file = "json/" + company_file
     with open(company_file, 'r') as f:
         company_profile = json.load(f)
     company_profile_str = json.dumps(company_profile, indent=2)

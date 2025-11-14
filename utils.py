@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 from rich import print_json
 
 DATA_DIR = os.path.dirname(__file__)
-FILES = ["well_connect.json", "aeropay.json", "metrogrid.json"]
+FILES = [".\\json\\well_connect.json", ".\\json\\aeropay.json", ".\\json\\metrogrid.json"]
 
 
 def read_from_file(filepath):

@@ -24,7 +24,7 @@ def generate(user_input, company_profile):
     ]
 
     # Combine the base prompt with the company profile
-    base_prompt = utils.read_from_file("prompt.txt")
+    base_prompt = utils.read_from_file(".\\text\\prompt.txt")
         
     final_prompt = company_profile + "\n" + base_prompt
 
