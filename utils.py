@@ -1,8 +1,27 @@
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from rich import print_json
+from pydantic import BaseModel, Field
+
+
+class Turn(BaseModel):
+    role: str
+    text: str
+    raw_chunks: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class SessionLog(BaseModel):
+    turns: List[Turn] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    def add_turn(self, role: str, text: str, raw_chunks: Optional[List[Dict[str, Any]]] = None) -> None:
+        """Append a turn to the log."""
+        self.turns.append(Turn(role=role, text=text, raw_chunks=raw_chunks or []))
+
+    def add_metadata(self, key: str, value: Any) -> None:
+        self.metadata[key] = value
 
 DATA_DIR = os.path.dirname(__file__)
 FILES = [".\\json\\well_connect.json", ".\\json\\aeropay.json", ".\\json\\metrogrid.json"]
@@ -123,24 +142,27 @@ def pretty_print(obj):
         print(obj)
 
 
-def save_session(history: List[Dict[str, Any]], directory: str = "session_logs") -> str:
+def save_session(session: SessionLog, directory: str = "session_logs") -> str:
     """
-    Saves the provided conversation history into a timestamped JSON file.
+    Persist a SessionLog to disk as JSON.
 
     Args:
-        history (List[Dict[str, Any]]): Entries representing the session.
-        directory (str): Directory where logs will be stored (default: 'session_logs').
+        session (SessionLog): The session to persist.
+        directory (str): Directory for storing logs.
 
     Returns:
-        str: Absolute path to the saved session log.
+        str: Absolute path to the saved session file.
     """
+    if not isinstance(session, SessionLog):
+        raise TypeError("save_session expects a SessionLog instance.")
+
     os.makedirs(directory, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     file_name = f"Session_log({timestamp}).json"
     path = os.path.join(directory, file_name)
 
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(history or [], f, indent=2)
+        json.dump(session.model_dump(), f, indent=2)
 
     return os.path.abspath(path)
 
@@ -184,24 +206,6 @@ def repl():
             print([p.get("company_name") for p in PROFILES])
         else:
             print("Unknown command. Try: tech, search-tech, person, assets, list, exit")
-
-def save_session(history: list, file_path: str = "session_log.json") -> str:
-    """
-    Persist the conversation history to disk.
-
-    Args:
-        history (list): entries like {"user": "...", "dase": "..."}.
-        file_path (str): where to write the JSON data.
-
-    Returns:
-        str: absolute path of the saved file.
-    """
-    os.makedirs(os.path.dirname(file_path) or ".", exist_ok=True)
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(history, f, indent=2)
-    return os.path.abspath(file_path)
-
-
 
 if __name__ == "__main__":
     if not PROFILES:
