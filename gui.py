@@ -5,6 +5,7 @@ import threading
 import os
 import platform
 import ctypes
+import utils
 
 
 scale_factor = 1.0
@@ -202,6 +203,10 @@ def start_session_callback():
 
     # Reset conversation state
     gemini.conversation_history.clear()
+    gemini.session_log = utils.SessionLog()
+    gemini.session_log.add_metadata("company_name", company_name)
+    gemini.session_log.add_metadata("difficulty", difficulty)
+    gemini.session_log.add_metadata("reactions", reactions)
     step = 0
 
     # Switch views
@@ -263,11 +268,13 @@ def send_message_callback():
     )
 
     def stream_response():
-        full_response_text = "DASE: "
-        for chunk in gemini.generate(full_prompt, company_profile_str):
-            full_response_text += chunk
-            if dpg.does_item_exist(model_response_tag):
-                dpg.set_value(model_response_tag, full_response_text)
+        try:
+            response_text, _ = gemini.generate(full_prompt, company_profile_str, gemini.session_log)
+        except Exception as e:
+            response_text = f"Error: {e}"
+        final_text = f"DASE: {response_text}"
+        if dpg.does_item_exist(model_response_tag):
+            dpg.set_value(model_response_tag, final_text)
 
     threading.Thread(target=stream_response, daemon=True).start()
 
@@ -278,6 +285,27 @@ def back_to_setup_callback():
     dpg.configure_item("chat_window", show=False)
     dpg.configure_item("setup_window", show=True)
     dpg.set_primary_window("setup_window", True)
+
+
+def save_session_callback():
+    """
+    Saves the current Gemini session log to disk.
+    """
+    try:
+        file_path = utils.save_session(gemini.session_log)
+        dpg.add_text(
+            f"Session saved to {file_path}",
+            parent="chat_display",
+            color=SYSTEM_COLOR,
+            wrap=wrap_width("chat_display")
+        )
+    except Exception as e:
+        dpg.add_text(
+            f"Failed to save session: {e}",
+            parent="chat_display",
+            color=(255, 99, 71, 255),
+            wrap=wrap_width("chat_display")
+        )
 
 # --- UI Definition ---
 
@@ -309,10 +337,13 @@ with dpg.window(label="Chat", tag="chat_window", show=False, width=800, height=7
             hint="Type your message here...",
             on_enter=True,
             callback=send_message_callback,
-            width=-120
+            width=-150
         )
-        dpg.add_button(label="Send", callback=send_message_callback, width=50)
-        dpg.add_button(label="End", callback=back_to_setup_callback, width=50)
+        dpg.add_button(label="Send", callback=send_message_callback, width=60)
+        dpg.add_button(label="End", callback=back_to_setup_callback, width=60)
+
+    dpg.add_spacer(height=6)
+    dpg.add_button(label="Save Session", callback=save_session_callback, width=140)
 
 dpg.set_primary_window("setup_window", True)
 dpg.show_viewport()
