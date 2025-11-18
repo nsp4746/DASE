@@ -41,16 +41,19 @@ def generate(user_input, company_profile):
         contents=conversation_history,
         config=generate_content_config,
     ):
-       # print(chunk.text, end="", flush=True)
-        yield chunk.text
-        full_response += chunk.text
+        chunk_text = getattr(chunk, "text", "")
+        if chunk_text:
+            print(chunk_text, end="", flush=True)
+            full_response += chunk_text
     
+    print()  # newline after streaming output
     conversation_history.append(
         types.Content(
             role="model",
             parts=[types.Part.from_text(text=full_response)]
         )
     )
+    return full_response
 
 if __name__ == "__main__":
     print("=========DASE Gemini Interface============")
@@ -58,9 +61,9 @@ if __name__ == "__main__":
     reactions = input("Select number of reactions (1, 2, 3): ").strip()
     
     company_map = {
-        "1": "well_connect.json",
-        "2": "aeropay.json",
-        "3": "metrogrid.json"
+        "1": ".\\json\\well_connect.json",
+        "2": ".\\json\\aeropay.json",
+        "3": ".\\json\\metrogrid.json"
     }
 
     company_choice = input("Enter company name to perform exercise on:" \
@@ -87,11 +90,18 @@ if __name__ == "__main__":
             
             if user_prompt.lower() in ["quit", "exit", "q"]:
                 print("👋 Goodbye!")
+                print("Would you like to save session history?")
+                save_choice = input("Type 'yes' to save, or anything else to exit without saving: ").strip().lower()
+                if save_choice == "yes":
+                    file_path = utils.save_session(conversation_history)
+                    print(f"Session history saved to {file_path}")
                 break
             if step == 0:
                 user_prompt = user_prompt + "\n The user desires this level of techincal difficulty: " + difficulty + " and this number of reactions " + reactions + ". The company to perform the exercise on is " + company_profile["company_name"] + "."
                 step += 1
+                print("\nGemini:\n")
                 generate(user_prompt, company_profile_str)
 
             else: 
+                print("\nGemini:\n")
                 generate(user_prompt, company_profile_str)

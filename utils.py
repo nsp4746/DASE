@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 from typing import Any, Dict, List
 from rich import print_json
 
@@ -121,6 +122,28 @@ def pretty_print(obj):
     else:
         print(obj)
 
+
+def save_session(history: List[Dict[str, Any]], directory: str = "session_logs") -> str:
+    """
+    Saves the provided conversation history into a timestamped JSON file.
+
+    Args:
+        history (List[Dict[str, Any]]): Entries representing the session.
+        directory (str): Directory where logs will be stored (default: 'session_logs').
+
+    Returns:
+        str: Absolute path to the saved session log.
+    """
+    os.makedirs(directory, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    file_name = f"Session_log({timestamp}).json"
+    path = os.path.join(directory, file_name)
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(history or [], f, indent=2)
+
+    return os.path.abspath(path)
+
 def repl():
     print("Simple company JSON REPL. Examples:\n - tech AeroPay\n - search-tech aws\n - person 'AeroPay' 'CTO'\n - assets 'Well-Connect' PHI\n - exit")
     while True:
@@ -161,6 +184,24 @@ def repl():
             print([p.get("company_name") for p in PROFILES])
         else:
             print("Unknown command. Try: tech, search-tech, person, assets, list, exit")
+
+def save_session(history: list, file_path: str = "session_log.json") -> str:
+    """
+    Persist the conversation history to disk.
+
+    Args:
+        history (list): entries like {"user": "...", "dase": "..."}.
+        file_path (str): where to write the JSON data.
+
+    Returns:
+        str: absolute path of the saved file.
+    """
+    os.makedirs(os.path.dirname(file_path) or ".", exist_ok=True)
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(history, f, indent=2)
+    return os.path.abspath(file_path)
+
+
 
 if __name__ == "__main__":
     if not PROFILES:
