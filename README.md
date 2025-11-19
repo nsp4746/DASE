@@ -25,5 +25,7 @@ This is project seeks to introduce dynamic incident response trainings.
 ### 5. Run gui.py  
 
 
-## Insure that the file directory matches this 
-[File Dir](./images/directory_setup.png)
+## Appendix
+- [File Dir](./images/directory_setup.png)
+- Utils.py can be used to query for information about the JSON files. 
+

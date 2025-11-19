@@ -5,7 +5,15 @@ import threading
 import os
 import platform
 import ctypes
+import utils
+import openai_helper
 
+
+def _decode_unicode(text: str) -> str:
+    try:
+        return text.encode("utf-8").decode("unicode_escape")
+    except UnicodeDecodeError:
+        return text
 
 scale_factor = 1.0
 # DPI Context Aware
@@ -30,7 +38,7 @@ else:
     print("Non-Windows platform detected. Using Native DPI Scaling.")
 
 dpg.create_context()
-dpg.create_viewport(title='DASE Gemini Interface', width=800, height=700)
+dpg.create_viewport(title='DASE Training Interface', width=800, height=700)
 dpg.setup_dearpygui()
 
 # --- Visual Constants / Helpers ---
@@ -178,18 +186,23 @@ company_map = {
     "AeroPay": "aeropay.json",
     "MetroGrid Manufacturing": "metrogrid.json"
 }
+MODEL_OPTIONS = ["Google Gemini", "OpenAI ChatGPT"]
+active_model = MODEL_OPTIONS[0]
+active_session_log = gemini.session_log
 
 # --- Callbacks ---
 def start_session_callback():
     """
     Loads company profile, sets up chat parameters, and switches to the chat window.
     """
-    global company_profile_str, difficulty, reactions, step
+    global company_profile_str, difficulty, reactions, step, active_model, active_session_log
 
     # Get values from setup window
     company_name = dpg.get_value("company_combo")
     difficulty = dpg.get_value("difficulty_combo")
     reactions = dpg.get_value("reactions_input")
+    model_choice = dpg.get_value("model_combo") or MODEL_OPTIONS[0]
+    active_model = model_choice
 
     company_file = company_map.get(company_name)
     if not company_file:
@@ -200,8 +213,18 @@ def start_session_callback():
         company_profile = json.load(f)
     company_profile_str = json.dumps(company_profile, indent=2)
 
-    # Reset conversation state
-    gemini.conversation_history.clear()
+    # Reset conversation state based on selected model
+    if model_choice == "Google Gemini":
+        gemini.conversation_history.clear()
+        gemini.session_log = utils.SessionLog()
+        gemini.session_log.add_metadata("company_name", company_name)
+        gemini.session_log.add_metadata("difficulty", difficulty)
+        gemini.session_log.add_metadata("reactions", reactions)
+        gemini.session_log.add_metadata("model", "Google Gemini")
+        active_session_log = gemini.session_log
+    else:
+        openai_helper.reset_session(difficulty, reactions, company_profile_str, company_name)
+        active_session_log = openai_helper.session_log
     step = 0
 
     # Switch views
@@ -212,7 +235,7 @@ def start_session_callback():
     # Clear and update chat display
     dpg.delete_item("chat_display", children_only=True)
     dpg.add_text(
-        f"Session started for {company_name} with difficulty '{difficulty}' and {reactions} reaction(s).",
+        f"Session started for {company_name} using {model_choice} with difficulty '{difficulty}' and {reactions} reaction(s).",
         parent="chat_display",
         color=SYSTEM_COLOR,
         wrap=wrap_width("chat_display")
@@ -227,7 +250,7 @@ def start_session_callback():
 
 def send_message_callback():
     """
-    Sends user input to the Gemini model and displays the streaming response.
+    Sends user input to the selected model and displays the streaming response.
     """
     global step
     user_input = dpg.get_value("user_input")
@@ -241,7 +264,7 @@ def send_message_callback():
         wrap=wrap_width("chat_display")
     )
     dpg.set_value("user_input", "") 
-    if step == 0:
+    if step == 0 and active_model == "Google Gemini":
         company_name = dpg.get_value("company_combo")
         full_prompt = (
             f"{user_input}\nThe user desires this level of technical difficulty: {difficulty} "
@@ -263,11 +286,16 @@ def send_message_callback():
     )
 
     def stream_response():
-        full_response_text = "DASE: "
-        for chunk in gemini.generate(full_prompt, company_profile_str):
-            full_response_text += chunk
-            if dpg.does_item_exist(model_response_tag):
-                dpg.set_value(model_response_tag, full_response_text)
+        model_name = active_model
+        log = active_session_log
+        model_handler = gemini if model_name == "Google Gemini" else openai_helper
+        try:
+            response_text, _ = model_handler.generate(full_prompt, company_profile_str, log)
+        except Exception as e:
+            response_text = f"Error: {e}"
+        final_text = _decode_unicode(f"DASE: {response_text}")
+        if dpg.does_item_exist(model_response_tag):
+            dpg.set_value(model_response_tag, final_text)
 
     threading.Thread(target=stream_response, daemon=True).start()
 
@@ -279,14 +307,47 @@ def back_to_setup_callback():
     dpg.configure_item("setup_window", show=True)
     dpg.set_primary_window("setup_window", True)
 
+
+def save_session_callback():
+    """
+    Saves the current session log to disk.
+    """
+    if active_session_log is None:
+        dpg.add_text(
+            "No active session to save.",
+            parent="chat_display",
+            color=(255, 99, 71, 255),
+            wrap=wrap_width("chat_display")
+        )
+        return
+    try:
+        file_path = utils.save_session(active_session_log)
+        dpg.add_text(
+            f"Session saved to {file_path}",
+            parent="chat_display",
+            color=SYSTEM_COLOR,
+            wrap=wrap_width("chat_display")
+        )
+    except Exception as e:
+        dpg.add_text(
+            f"Failed to save session: {e}",
+            parent="chat_display",
+            color=(255, 99, 71, 255),
+            wrap=wrap_width("chat_display")
+        )
+
 # --- UI Definition ---
 
 with dpg.window(label="Setup", tag="setup_window", width=800, height=700):
-    dpg.add_text("DASE Gemini Interface Setup")
+    dpg.add_text("DASE Session Setup")
     dpg.add_spacer(height=10)
 
     dpg.add_text("Select Company:")
     dpg.add_combo(list(company_map.keys()), default_value="Well Connect", tag="company_combo", width=250)
+    dpg.add_spacer(height=10)
+
+    dpg.add_text("Select Model:")
+    dpg.add_combo(MODEL_OPTIONS, default_value=MODEL_OPTIONS[0], tag="model_combo", width=250)
     dpg.add_spacer(height=10)
 
     dpg.add_text("Select Difficulty:")
@@ -309,10 +370,13 @@ with dpg.window(label="Chat", tag="chat_window", show=False, width=800, height=7
             hint="Type your message here...",
             on_enter=True,
             callback=send_message_callback,
-            width=-120
+            width=-150
         )
-        dpg.add_button(label="Send", callback=send_message_callback, width=50)
-        dpg.add_button(label="End", callback=back_to_setup_callback, width=50)
+        dpg.add_button(label="Send", callback=send_message_callback, width=60)
+        dpg.add_button(label="End", callback=back_to_setup_callback, width=60)
+
+    dpg.add_spacer(height=6)
+    dpg.add_button(label="Save Session", callback=save_session_callback, width=140)
 
 dpg.set_primary_window("setup_window", True)
 dpg.show_viewport()

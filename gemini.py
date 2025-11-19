@@ -5,14 +5,24 @@ from google.genai import types
 from dotenv import load_dotenv
 
 conversation_history = []
+session_log = utils.SessionLog()
 load_dotenv()
 
-def generate(user_input, company_profile):
+def _sanitize_chunk(chunk_dict):
+    """Keep only relevant fields to avoid bloating session logs."""
+    if not isinstance(chunk_dict, dict):
+        return {}
+    allowed_keys = {"candidates", "text"}
+    sanitized = {key: chunk_dict[key] for key in allowed_keys if key in chunk_dict}
+    return sanitized
+
+def generate(user_input, company_profile, log: utils.SessionLog):
 
     conversation_history.append(types.Content(
         role="user",
         parts=[types.Part.from_text(text=user_input)]
     ))
+    log.add_turn("user", user_input)
     client = genai.Client(
         api_key=os.getenv("GEMINI_API_KEY"),
     )
@@ -36,14 +46,21 @@ def generate(user_input, company_profile):
         system_instruction=[types.Part.from_text(text=final_prompt)]
     )
     full_response = ""
+    raw_chunks = []
     for chunk in client.models.generate_content_stream(
         model=model,
         contents=conversation_history,
         config=generate_content_config,
     ):
-       # print(chunk.text, end="", flush=True)
-        yield chunk.text
-        full_response += chunk.text
+        chunk_dict = chunk.to_dict() if hasattr(chunk, "to_dict") else {}
+        if not chunk_dict and hasattr(chunk, "model_dump"):
+            chunk_dict = chunk.model_dump()
+        sanitized = _sanitize_chunk(chunk_dict)
+        if sanitized:
+            raw_chunks.append(sanitized)
+        chunk_text = getattr(chunk, "text", "")
+        if chunk_text:
+            full_response += chunk_text
     
     conversation_history.append(
         types.Content(
@@ -51,6 +68,8 @@ def generate(user_input, company_profile):
             parts=[types.Part.from_text(text=full_response)]
         )
     )
+    log.add_turn("model", full_response, raw_chunks)
+    return full_response, raw_chunks
 
 if __name__ == "__main__":
     print("=========DASE Gemini Interface============")
@@ -58,9 +77,9 @@ if __name__ == "__main__":
     reactions = input("Select number of reactions (1, 2, 3): ").strip()
     
     company_map = {
-        "1": "well_connect.json",
-        "2": "aeropay.json",
-        "3": "metrogrid.json"
+        "1": ".\\json\\well_connect.json",
+        "2": ".\\json\\aeropay.json",
+        "3": ".\\json\\metrogrid.json"
     }
 
     company_choice = input("Enter company name to perform exercise on:" \
@@ -80,6 +99,9 @@ if __name__ == "__main__":
         # Convert the json into a string format that is readable by the model
         company_profile_str = json.dumps(company_profile, indent=2)
 
+        session_log.add_metadata("company_name", company_profile.get("company_name"))
+        session_log.add_metadata("difficulty", difficulty)
+        session_log.add_metadata("reactions", reactions)
 
         step = 0
         while True:
@@ -87,11 +109,20 @@ if __name__ == "__main__":
             
             if user_prompt.lower() in ["quit", "exit", "q"]:
                 print("👋 Goodbye!")
+                print("Would you like to save session history?")
+                save_choice = input("Type 'yes' to save, or anything else to exit without saving: ").strip().lower()
+                if save_choice == "yes":
+                    file_path = utils.save_session(session_log)
+                    print(f"Session history saved to {file_path}")
                 break
             if step == 0:
                 user_prompt = user_prompt + "\n The user desires this level of techincal difficulty: " + difficulty + " and this number of reactions " + reactions + ". The company to perform the exercise on is " + company_profile["company_name"] + "."
                 step += 1
-                generate(user_prompt, company_profile_str)
+                print("\nGemini:\n")
+                response_text, _ = generate(user_prompt, company_profile_str, session_log)
+                print(response_text)
 
             else: 
-                generate(user_prompt, company_profile_str)
+                print("\nGemini:\n")
+                response_text, _ = generate(user_prompt, company_profile_str, session_log)
+                print(response_text)
