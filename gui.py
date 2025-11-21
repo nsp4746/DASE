@@ -36,6 +36,7 @@ elif platform.system() == "Darwin":
 
 else:
     print("Non-Windows platform detected. Using Native DPI Scaling.")
+    scale = 1.0
 
 dpg.create_context()
 dpg.create_viewport(title='DASE Training Interface', width=800, height=700)
@@ -143,33 +144,33 @@ def install_theme_and_fonts(scale: float):
             dpg.set_global_font_scale(scale)
 
 # def install_theme_and_fonts():
-    """Install a light readability theme and try to bind a clean UI font.
-    Falls back gracefully if the font path is unavailable.
-    """
-    # Simple dark theme with comfortable spacing
-    with dpg.theme() as app_theme:
-        with dpg.theme_component(dpg.mvAll):
-            dpg.add_theme_color(dpg.mvThemeCol_Text, (230, 230, 230, 255))
-            dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (24, 24, 27, 255))
-            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6)
-            dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 6, 6)
-        with dpg.theme_component(dpg.mvChildWindow):
-            dpg.add_theme_color(dpg.mvThemeCol_ChildBg, (18, 18, 20, 255))
-    dpg.bind_theme(app_theme)
+    # """Install a light readability theme and try to bind a clean UI font.
+    # Falls back gracefully if the font path is unavailable.
+    # """
+    # # Simple dark theme with comfortable spacing
+    # with dpg.theme() as app_theme:
+    #     with dpg.theme_component(dpg.mvAll):
+    #         dpg.add_theme_color(dpg.mvThemeCol_Text, (230, 230, 230, 255))
+    #         dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (24, 24, 27, 255))
+    #         dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6)
+    #         dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 6, 6)
+    #     with dpg.theme_component(dpg.mvChildWindow):
+    #         dpg.add_theme_color(dpg.mvThemeCol_ChildBg, (18, 18, 20, 255))
+    # dpg.bind_theme(app_theme)
 
-    # Try to use Segoe UI on Windows for improved readability
-    font_path = r"C:\\Windows\\Fonts\\segoeui.ttf"
-    with dpg.font_registry():
-        default_font = None
-        if os.path.exists(font_path):
-            try:
-                default_font = dpg.add_font(font_path, 18)
-            except Exception:
-                default_font = None
-        if default_font is not None:
-            dpg.bind_font(default_font)
-    # Slight global scale for readability (kept gentle)
-    dpg.set_global_font_scale(1.05)
+    # # Try to use Segoe UI on Windows for improved readability
+    # font_path = r"C:\\Windows\\Fonts\\segoeui.ttf"
+    # with dpg.font_registry():
+    #     default_font = None
+    #     if os.path.exists(font_path):
+    #         try:
+    #             default_font = dpg.add_font(font_path, 18)
+    #         except Exception:
+    #             default_font = None
+    #     if default_font is not None:
+    #         dpg.bind_font(default_font)
+    # # Slight global scale for readability (kept gentle)
+    # dpg.set_global_font_scale(1.05)
     
 # install theme/fonts before building any UI
 
