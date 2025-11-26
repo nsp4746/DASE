@@ -29,7 +29,7 @@ def generate(user_input, company_profile, log: utils.SessionLog):
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.5-flash" # or "gemini-2.5-pro"
+    model = "gemini-2.5-pro" # or "gemini-2.5-flash/pro", flash for faster responses
     tools = [
         types.Tool(googleSearch=types.GoogleSearch(
         )),

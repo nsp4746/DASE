@@ -35,6 +35,8 @@ def _decode_unicode(text: str) -> str:
         return text.encode("utf-8").decode("unicode_escape")
     except UnicodeDecodeError:
         return text
+    
+    
 scale_factor = 1.0
 # DPI Context Aware
 if platform.system() == "Windows":

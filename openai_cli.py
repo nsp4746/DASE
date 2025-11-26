@@ -15,36 +15,46 @@ class DASEClient:
         self.reactions = reactions
         self.company_profile = company_profile
         self.company_name = company_name
-        self.history = []
-        self._first_message = True
+        self.history = []  # list of {"role": "user"|"dase", "text": str}
+        self._base_context = (
+            f"The user desires this level of technical difficulty: {self.difficulty}. "
+            f"The number of requested reactions is {self.reactions}. "
+            f"The company to perform the exercise on is {self.company_name}.\n"
+            f"Company profile:\n{self.company_profile}\n"
+        )
+
+    def _conversation_text(self) -> str:
+        """
+        Build a plain-text transcript to give the model memory across turns,
+        anchored with the company context.
+        """
+        lines = [self._base_context, "Conversation so far:"]
+        for turn in self.history:
+            speaker = "User" if turn["role"] == "user" else "DASE"
+            lines.append(f"{speaker}: {turn['text']}")
+        return "\n".join(lines)
 
     def send_message(self, user_input):
-        if self._first_message:
-            context = (
-                f"\nThe user desires this level of technical difficulty: {self.difficulty}. "
-                f"The number of requested reactions is {self.reactions}. "
-                f"The company to perform the exercise on is {self.company_name}.\n"
-                f"Company profile:\n{self.company_profile}\n"
-            )
-            user_input = f"{user_input} {context}"
-            self._first_message = False
+        # Include company context and prior turns so the model stays anchored.
+        prompt_text = f"{self._conversation_text()}\nUser: {user_input}\nDASE:"
 
         try:
             response = self.client.responses.create(
                 model="gpt-5.1",
                 prompt={
                     "id": self.prompt_id,
-                    "version": "4",
+                    "version": "7",
                     "variables": {
                         "reactions": self.reactions,
                         "difficulty": self.difficulty,
                     },
                 },
-                input=user_input
+                input=prompt_text
             )
         except Exception as e:
             error_msg = f"API call failed: {e}"
-            self.history.append({"user": user_input, "dase": error_msg})
+            self.history.append({"role": "user", "text": user_input})
+            self.history.append({"role": "dase", "text": error_msg})
             return error_msg
 
         output_text = getattr(response, "output_text", None)
@@ -56,10 +66,8 @@ class DASEClient:
             except Exception:
                 output_text = "[No text output returned]"
 
-        self.history.append({
-            "user": user_input,
-            "dase": output_text
-        })
+        self.history.append({"role": "user", "text": user_input})
+        self.history.append({"role": "dase", "text": output_text})
 
         return output_text
            
