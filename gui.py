@@ -8,13 +8,33 @@ import ctypes
 import utils
 import openai_helper
 
-
+"""
+GUI for DASE Training Interface using Dear PyGui.
+"""
 def _decode_unicode(text: str) -> str:
+    """
+    Convert escape sequences such as '\\u2019' into their actual characters
+    so Dear PyGui renders them correctly.
+    """
+    # Normalize curly quotes/dashes to ASCII so missing glyphs don't render as '?'
+    replacements = {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2026": "...",
+        "\u00a0": " ",
+    }
+    text = "".join(replacements.get(ch, ch) for ch in text)
+    # Decode escape sequences only when present to avoid mangling real Unicode chars.
+    if "\\u" not in text and "\\x" not in text:
+        return text
     try:
         return text.encode("utf-8").decode("unicode_escape")
     except UnicodeDecodeError:
         return text
-
 scale_factor = 1.0
 # DPI Context Aware
 if platform.system() == "Windows":
@@ -131,6 +151,19 @@ def install_theme_and_fonts(scale: float):
         if font_path:
             try:
                 default_font = dpg.add_font(font_path, scaled_font_size)
+                # Ensure common punctuation (curly quotes/dashes) render instead of showing '?'.
+                try:
+                    if hasattr(dpg, "add_font_range_hint"):
+                        try:
+                            dpg.add_font_range_hint(default_font, dpg.mvFontRangeHint_Default)
+                            dpg.add_font_range_hint(default_font, dpg.mvFontRangeHint_Latin)
+                        except TypeError:
+                            dpg.add_font_range_hint(dpg.mvFontRangeHint_Default)
+                            dpg.add_font_range_hint(dpg.mvFontRangeHint_Latin)
+                    if hasattr(dpg, "add_font_range"):
+                        dpg.add_font_range(default_font, 0x2000, 0x206F)  # General Punctuation block
+                except Exception as e:
+                    print(f"Warning: could not extend font ranges: {e}")
             except Exception as e:
                 print(f"Error loading font {font_path}: {e}")
                 default_font = None
@@ -139,40 +172,7 @@ def install_theme_and_fonts(scale: float):
             dpg.bind_font(default_font)
         else:
             print("Binding default font and using set_global_font_scale as fallback.")
-            default_font = dpg.add_font(tag="default_font") 
-            dpg.bind_font(default_font)
             dpg.set_global_font_scale(scale)
-
-# def install_theme_and_fonts():
-    # """Install a light readability theme and try to bind a clean UI font.
-    # Falls back gracefully if the font path is unavailable.
-    # """
-    # # Simple dark theme with comfortable spacing
-    # with dpg.theme() as app_theme:
-    #     with dpg.theme_component(dpg.mvAll):
-    #         dpg.add_theme_color(dpg.mvThemeCol_Text, (230, 230, 230, 255))
-    #         dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (24, 24, 27, 255))
-    #         dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6)
-    #         dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 6, 6)
-    #     with dpg.theme_component(dpg.mvChildWindow):
-    #         dpg.add_theme_color(dpg.mvThemeCol_ChildBg, (18, 18, 20, 255))
-    # dpg.bind_theme(app_theme)
-
-    # # Try to use Segoe UI on Windows for improved readability
-    # font_path = r"C:\\Windows\\Fonts\\segoeui.ttf"
-    # with dpg.font_registry():
-    #     default_font = None
-    #     if os.path.exists(font_path):
-    #         try:
-    #             default_font = dpg.add_font(font_path, 18)
-    #         except Exception:
-    #             default_font = None
-    #     if default_font is not None:
-    #         dpg.bind_font(default_font)
-    # # Slight global scale for readability (kept gentle)
-    # dpg.set_global_font_scale(1.05)
-    
-# install theme/fonts before building any UI
 
 install_theme_and_fonts(scale)
 
@@ -182,12 +182,7 @@ difficulty = "low"
 reactions = 1
 step = 0
 
-company_map = {
-    "Well Connect": "well_connect.json",
-    "AeroPay": "aeropay.json",
-    "MetroGrid Manufacturing": "metrogrid.json"
-}
-MODEL_OPTIONS = ["Google Gemini", "OpenAI ChatGPT"]
+MODEL_OPTIONS = ["Google Gemini", "OpenAI ChatGPT"] # This is fine here as it's GUI-specific
 active_model = MODEL_OPTIONS[0]
 active_session_log = gemini.session_log
 
@@ -205,12 +200,11 @@ def start_session_callback():
     model_choice = dpg.get_value("model_combo") or MODEL_OPTIONS[0]
     active_model = model_choice
 
-    company_file = company_map.get(company_name)
+    company_file = utils.COMPANY_MAP.get(company_name)
     if not company_file:
         print("Invalid company selection.")
         return
-    company_file = "json/" + company_file
-    with open(company_file, 'r') as f:
+    with open(company_file, 'r', encoding='utf-8') as f:
         company_profile = json.load(f)
     company_profile_str = json.dumps(company_profile, indent=2)
 
@@ -258,6 +252,9 @@ def send_message_callback():
     if not user_input:
         return
 
+    # Show the loading indicator immediately
+    dpg.configure_item("loading_indicator", show=True)
+
     dpg.add_text(
         f"User: {user_input}",
         parent="chat_display",
@@ -291,14 +288,18 @@ def send_message_callback():
         log = active_session_log
         model_handler = gemini if model_name == "Google Gemini" else openai_helper
         try:
+            # The openai_helper already decodes, so we only need to decode for gemini
             response_text, _ = model_handler.generate(full_prompt, company_profile_str, log)
+            if model_name == "Google Gemini":
+                response_text = _decode_unicode(response_text)
         except Exception as e:
             response_text = f"Error: {e}"
-        final_text = _decode_unicode(f"DASE: {response_text}")
-        if dpg.does_item_exist(model_response_tag):
-            dpg.set_value(model_response_tag, final_text)
-
+        finally:
+            dpg.configure_item("loading_indicator", show=False)
+            if dpg.does_item_exist(model_response_tag):
+                dpg.set_value(model_response_tag, f"DASE: {response_text}")
     threading.Thread(target=stream_response, daemon=True).start()
+
 
 def back_to_setup_callback():
     """
@@ -344,7 +345,7 @@ with dpg.window(label="Setup", tag="setup_window", width=800, height=700):
     dpg.add_spacer(height=10)
 
     dpg.add_text("Select Company:")
-    dpg.add_combo(list(company_map.keys()), default_value="Well Connect", tag="company_combo", width=250)
+    dpg.add_combo(list(utils.COMPANY_MAP.keys()), default_value="Well Connect", tag="company_combo", width=250)
     dpg.add_spacer(height=10)
 
     dpg.add_text("Select Model:")
@@ -371,10 +372,12 @@ with dpg.window(label="Chat", tag="chat_window", show=False, width=800, height=7
             hint="Type your message here...",
             on_enter=True,
             callback=send_message_callback,
-            width=-150
+            width=-220
         )
         dpg.add_button(label="Send", callback=send_message_callback, width=60)
         dpg.add_button(label="End", callback=back_to_setup_callback, width=60)
+        with dpg.group(horizontal=True):
+            dpg.add_loading_indicator(tag="loading_indicator", show=False, style=1, radius=1.5)
 
     dpg.add_spacer(height=6)
     dpg.add_button(label="Save Session", callback=save_session_callback, width=140)

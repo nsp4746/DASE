@@ -1,11 +1,9 @@
 from openai import OpenAI
 from dotenv import load_dotenv
 import json
-import os
+import os, utils
 '''
-
-Not updated file, please gui.py for most up to data version of DASE client. 
-
+DASE Client for interacting with OpenAI's API using a predefined prompt. 
 '''
 load_dotenv()
 
@@ -65,7 +63,16 @@ class DASEClient:
 
         return output_text
            
-
+def save_history_and_exit(dase_client):
+    """Handles saving session history and exiting the application."""
+    print("Session ended.")
+    print("Would you like to save session history?")
+    save_choice = input("Type 'yes' to save, or anything else to exit without saving: ").strip().lower()
+    if save_choice == "yes" and hasattr(dase_client, 'history'):
+        log = utils.SessionLog()
+        log.turns = [utils.Turn(role="user", text=t["user"]) for t in dase_client.history] # Simplified conversion
+        file_path = utils.save_session(log)
+        print(f"History saved to {file_path}")
 
 def main():
     prompt_id = "pmpt_68ed9669d8f88195ab599ab84c53870f0ec675ea9d29fd46"
@@ -77,66 +84,34 @@ def main():
     difficulty = input("Select difficulty (low, medium, high): ").strip().lower()
     reactions = input("Select number of reactions (1, 2, 3): ").strip()
     
-    base_json_dir = os.path.join(os.path.dirname(__file__), "json")
-    company_map = {
-        "1": os.path.join(base_json_dir, "well_connect.json"),
-        "2": os.path.join(base_json_dir, "aeropay.json"),
-        "3": os.path.join(base_json_dir, "metrogrid.json")
-    }
-
-    company_choice = input(
-        "Enter company name to perform exercise on:"
-        "\n Company 1: Well Connect \n"
-        "\n Company 2: AeroPay \n"
-        "\n Company 3: MetroGrid Manufacturing \n"
-        "Please select one: "
-    ).strip()
-
-    company_file = company_map.get(company_choice)
-    if not company_file:
-        print("Invalid company selection.")
+    company_profile, company_profile_str = utils.select_company_from_cli()
+    if not company_profile:
         return
-
-    with open(company_file, "r") as f:
-        company_profile = json.load(f)
-
-    company_profile_str = json.dumps(company_profile, indent=2)
+    
     company_name = company_profile.get("company_name", "Unknown Company")
 
     dase = DASEClient(prompt_id, difficulty, reactions, company_profile_str, company_name)
-
     
     user_input = input("Start scenario: ")
     print()
     
     while True:
-        if user_input.lower() == "exit" or user_input.lower() == "quit" or user_input.lower() == "q" or user_input.lower() == "stop" or user_input.lower() == "end":
-            print("Session ended.")
-            dase.save_history()
+        try:
+            if user_input.lower() in ("exit", "quit", "q", "stop", "end"):
+                save_history_and_exit(dase)
+                break
+    
+            with utils.loading_indicator():
+                model_output = dase.send_message(user_input)
+            
+            print("\nDASE:\n", model_output, "\n")
+
+            user_input = input("Your next action: ")
+            print()
+        except (KeyboardInterrupt, EOFError):
+            save_history_and_exit(dase)
             break
-
-   
-        model_output = dase.send_message(user_input)
-        print("\nDASE:\n", model_output, "\n")
-
-  
-        user_input = input("Your next action: ")
-        print()
-
 
 if __name__ == "__main__":
     main()  
 
-
-# client = OpenAI()
-
-# response = client.responses.create(
-#   prompt={
-#     "id": "pmpt_68ed9669d8f88195ab599ab84c53870f0ec675ea9d29fd46",
-#     "version": "4",
-#     "variables": {
-#       "reactions": "example reactions",
-#       "difficulty": "example difficulty"
-#     }
-#   }
-# )

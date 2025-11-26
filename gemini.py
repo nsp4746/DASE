@@ -3,7 +3,9 @@ import json
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
-
+"""
+DASE Client for interacting with OpenAI's API using a predefined prompt. 
+"""
 conversation_history = []
 session_log = utils.SessionLog()
 load_dotenv()
@@ -27,7 +29,7 @@ def generate(user_input, company_profile, log: utils.SessionLog):
         api_key=os.getenv("GEMINI_API_KEY"),
     )
 
-    model = "gemini-2.5-flash"
+    model = "gemini-2.5-flash" # or "gemini-2.5-pro"
     tools = [
         types.Tool(googleSearch=types.GoogleSearch(
         )),
@@ -76,29 +78,12 @@ if __name__ == "__main__":
     difficulty = input("Select difficulty (low, medium, high): ").strip().lower()
     reactions = input("Select number of reactions (1, 2, 3): ").strip()
     
-    company_map = {
-        "1": ".\\json\\well_connect.json",
-        "2": ".\\json\\aeropay.json",
-        "3": ".\\json\\metrogrid.json"
-    }
-
-    company_choice = input("Enter company name to perform exercise on:" \
-    "\n Company 1: Well Connect \n" \
-    "\n Company 2: AeroPay \n" \
-    "\n Company 3: MetroGrid Manufacturing \n" \
-    "Please select one: ").strip()
-
-    company_file = company_map.get(company_choice)
-
-    if not company_file:
-        print("Invalid company selection.")
+    company_profile, company_profile_str = utils.select_company_from_cli()
+    
+    if not company_profile:
+        # Error message is handled in the utility function
+        exit()
     else:
-        with open(company_file, 'r') as f:
-            company_profile = json.load(f)
-        
-        # Convert the json into a string format that is readable by the model
-        company_profile_str = json.dumps(company_profile, indent=2)
-
         session_log.add_metadata("company_name", company_profile.get("company_name"))
         session_log.add_metadata("difficulty", difficulty)
         session_log.add_metadata("reactions", reactions)
@@ -115,14 +100,17 @@ if __name__ == "__main__":
                     file_path = utils.save_session(session_log)
                     print(f"Session history saved to {file_path}")
                 break
-            if step == 0:
-                user_prompt = user_prompt + "\n The user desires this level of techincal difficulty: " + difficulty + " and this number of reactions " + reactions + ". The company to perform the exercise on is " + company_profile["company_name"] + "."
-                step += 1
-                print("\nGemini:\n")
-                response_text, _ = generate(user_prompt, company_profile_str, session_log)
-                print(response_text)
 
-            else: 
-                print("\nGemini:\n")
-                response_text, _ = generate(user_prompt, company_profile_str, session_log)
-                print(response_text)
+            final_prompt = user_prompt
+            if step == 0:
+                final_prompt = (
+                    f"{user_prompt}\nThe user desires this level of technical difficulty: {difficulty} "
+                    f"and this number of reactions {reactions}. The company to perform the exercise on is "
+                    f"{company_profile['company_name']}."
+                )
+                step += 1
+            
+            with utils.loading_indicator():
+                response_text, _ = generate(final_prompt, company_profile_str, session_log)
+
+            print("\nGemini:\n" + response_text)
