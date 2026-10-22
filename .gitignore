@@ -3,4 +3,4 @@
 __pycache__/
 .env
 session_logs/
-.pytest_cach/
+.pytest_cache/
