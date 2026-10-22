@@ -1,15 +1,17 @@
 from openai import OpenAI
 from dotenv import load_dotenv
 import json
-import os, utils
+import os
+from dase import utils
+from dase.paths import ENV_PATH
 '''
 DASE Client for interacting with OpenAI's API using a predefined prompt. 
 '''
-load_dotenv()
+load_dotenv(ENV_PATH)
 
 class DASEClient:
     def __init__(self, prompt_id, difficulty="low", reactions="2", company_profile="", company_name=""):
-        self.client = OpenAI()
+        self.client = OpenAI(timeout=120.0, max_retries=0)
         self.prompt_id = prompt_id
         self.difficulty = difficulty
         self.reactions = reactions
@@ -38,33 +40,25 @@ class DASEClient:
         # Include company context and prior turns so the model stays anchored.
         prompt_text = f"{self._conversation_text()}\nUser: {user_input}\nDASE:"
 
-        try:
-            response = self.client.responses.create(
-                model="gpt-5.1",
-                prompt={
-                    "id": self.prompt_id,
-                    "version": "7",
-                    "variables": {
-                        "reactions": self.reactions,
-                        "difficulty": self.difficulty,
-                    },
-                },
-                input=prompt_text
-            )
-        except Exception as e:
-            error_msg = f"API call failed: {e}"
-            self.history.append({"role": "user", "text": user_input})
-            self.history.append({"role": "dase", "text": error_msg})
-            return error_msg
-
+        response = self.client.responses.create(
+            model="gpt-5.1",
+            prompt={
+                "id": self.prompt_id,
+                "version": "7",
+                "variables": {"reactions": self.reactions, "difficulty": self.difficulty},
+            },
+            input=prompt_text,
+        )
         output_text = getattr(response, "output_text", None)
         if output_text:
             output_text = output_text.strip()
         else:
             try:
                 output_text = response.output[0].content[0].text.strip()
-            except Exception:
-                output_text = "[No text output returned]"
+            except (AttributeError, IndexError, TypeError) as exc:
+                raise RuntimeError("OpenAI returned no text output.") from exc
+        if not output_text:
+            raise RuntimeError("OpenAI returned no text output.")
 
         self.history.append({"role": "user", "text": user_input})
         self.history.append({"role": "dase", "text": output_text})
@@ -78,7 +72,8 @@ def save_history_and_exit(dase_client):
     save_choice = input("Type 'yes' to save, or anything else to exit without saving: ").strip().lower()
     if save_choice == "yes" and hasattr(dase_client, 'history'):
         log = utils.SessionLog()
-        log.turns = [utils.Turn(role="user", text=t["user"]) for t in dase_client.history] # Simplified conversion
+        log.turns = [utils.Turn(role="model" if t["role"] == "dase" else "user", text=t["text"])
+                     for t in dase_client.history]
         file_path = utils.save_session(log)
         print(f"History saved to {file_path}")
 
