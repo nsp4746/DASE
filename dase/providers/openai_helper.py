@@ -3,10 +3,11 @@ from typing import List, Dict, Any, Tuple
 
 from dotenv import load_dotenv
 
-import utils
-from openai_cli import DASEClient
+from dase import utils
+from dase.paths import ENV_PATH
+from dase.providers.openai_cli import DASEClient
 
-load_dotenv()
+load_dotenv(ENV_PATH)
 
 DEFAULT_PROMPT_ID = os.getenv(
     "OPENAI_PROMPT_ID",

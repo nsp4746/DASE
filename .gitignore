@@ -1,6 +1,46 @@
-.vscode/
+# Local Python environments (at any depth)
 .venv/
+venv/
+env/
+.python-version
+
+# Python bytecode and tool caches
 __pycache__/
-.env
-session_logs/
+*.py[cod]
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.cache/
+
+# Build, packaging, and test output
+/build/
+/dist/
+*.egg-info/
+.eggs/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Local configuration and generated exercise logs
+.env
+.env.*
+!.env.example
+/session_logs/
+*.log
+
+# Downloaded model weights and local model caches
+/models/
+/model_cache/
+
+# Editor and operating system files
+.vscode/
+.idea/
+.DS_Store
+._*
+Thumbs.db
+*.swp
+*.swo
+*~

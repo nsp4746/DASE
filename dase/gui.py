@@ -1,12 +1,13 @@
 import dearpygui.dearpygui as dpg
-import gemini
 import json
 import threading
 import os
 import platform
 import ctypes
-import utils
-import openai_helper
+from dase import utils
+from queue import Queue, Empty
+from dase.simulation import SimulationSession, MODEL_OPTIONS
+from dase.providers.mlx import MLXConfig
 
 """
 GUI for DASE Training Interface using Dear PyGui.
@@ -61,6 +62,7 @@ else:
     scale = 1.0
 
 dpg.create_context()
+dpg.configure_app(manual_callback_management=True)
 dpg.create_viewport(title='DASE Training Interface', width=800, height=700)
 dpg.setup_dearpygui()
 
@@ -178,135 +180,100 @@ def install_theme_and_fonts(scale: float):
 
 install_theme_and_fonts(scale)
 
-# --- Global State ---
-company_profile_str = ""
-difficulty = "low"
-reactions = 1
+# Every worker captures one session reference and returns through this queue.
+active_session = None
+active_session_log = None
+results = Queue()
+busy = False
 step = 0
 
-MODEL_OPTIONS = ["Google Gemini", "OpenAI ChatGPT"] # This is fine here as it's GUI-specific
-active_model = MODEL_OPTIONS[0]
-active_session_log = gemini.session_log
 
-# --- Callbacks ---
+def set_busy(value):
+    global busy
+    busy = value
+    dpg.configure_item("loading_indicator", show=value)
+    for tag in ("send_button", "end_button", "save_button", "user_input"):
+        dpg.configure_item(tag, enabled=not value)
+
+
 def start_session_callback():
-    """
-    Loads company profile, sets up chat parameters, and switches to the chat window.
-    """
-    global company_profile_str, difficulty, reactions, step, active_model, active_session_log
-
-    # Get values from setup window
-    company_name = dpg.get_value("company_combo")
-    difficulty = dpg.get_value("difficulty_combo")
-    reactions = dpg.get_value("reactions_input")
-    model_choice = dpg.get_value("model_combo") or MODEL_OPTIONS[0]
-    active_model = model_choice
-
-    company_file = utils.COMPANY_MAP.get(company_name)
-    if not company_file:
-        print("Invalid company selection.")
+    global active_session, active_session_log, step
+    if busy:
         return
-    with open(company_file, 'r', encoding='utf-8') as f:
-        company_profile = json.load(f)
-    company_profile_str = json.dumps(company_profile, indent=2)
-
-    # Reset conversation state based on selected model
-    if model_choice == "Google Gemini":
-        gemini.conversation_history.clear()
-        gemini.session_log = utils.SessionLog()
-        gemini.session_log.add_metadata("company_name", company_name)
-        gemini.session_log.add_metadata("difficulty", difficulty)
-        gemini.session_log.add_metadata("reactions", reactions)
-        gemini.session_log.add_metadata("model", "Google Gemini")
-        active_session_log = gemini.session_log
-    else:
-        openai_helper.reset_session(difficulty, reactions, company_profile_str, company_name)
-        active_session_log = openai_helper.session_log
+    try:
+        company_name = dpg.get_value("company_combo")
+        difficulty = dpg.get_value("difficulty_combo")
+        reactions = dpg.get_value("reactions_input")
+        model_choice = dpg.get_value("model_combo")
+        with open(utils.COMPANY_MAP[company_name], encoding="utf-8") as f:
+            profile = json.dumps(json.load(f), indent=2)
+        session = SimulationSession(model_choice, profile, company_name, difficulty, reactions,
+                                    local_model=dpg.get_value("mlx_model_input"))
+    except Exception as exc:
+        dpg.set_value("setup_error", f"Could not start session: {exc}")
+        return
+    active_session = session
+    active_session_log = session.log
     step = 0
-
-    # Switch views
+    dpg.set_value("setup_error", "")
+    dpg.set_value("user_input", "")
     dpg.configure_item("setup_window", show=False)
     dpg.configure_item("chat_window", show=True)
     dpg.set_primary_window("chat_window", True)
-
-    # Clear and update chat display
     dpg.delete_item("chat_display", children_only=True)
     dpg.add_text(
-        f"Session started for {company_name} using {model_choice} with difficulty '{difficulty}' and {reactions} reaction(s).",
-        parent="chat_display",
-        color=SYSTEM_COLOR,
-        wrap=wrap_width("chat_display")
-    )
-    dpg.add_text(
-        "Please enter your scenario description below.",
-        parent="chat_display",
-        color=SYSTEM_COLOR,
-        wrap=wrap_width("chat_display")
-    )
+        f"Session started for {company_name} using {model_choice}, difficulty {difficulty}, {reactions} reactions.",
+        parent="chat_display", color=SYSTEM_COLOR, wrap=wrap_width("chat_display"))
+    dpg.add_text("Enter the attack type or scenario you want to simulate.",
+                 parent="chat_display", color=SYSTEM_COLOR, wrap=wrap_width("chat_display"))
 
 
 def send_message_callback():
-    """
-    Sends user input to the selected model and displays the streaming response.
-    """
     global step
-    user_input = dpg.get_value("user_input")
+    if busy or active_session is None:
+        return
+    user_input = dpg.get_value("user_input").strip()
     if not user_input:
         return
-
-    # Show the loading indicator immediately
-    dpg.configure_item("loading_indicator", show=True)
-
-    dpg.add_text(
-        f"User: {user_input}",
-        parent="chat_display",
-        color=USER_COLOR,
-        wrap=wrap_width("chat_display")
-    )
-    dpg.set_value("user_input", "") 
-    if step == 0 and active_model == "Google Gemini":
-        company_name = dpg.get_value("company_combo")
-        full_prompt = (
-            f"{user_input}\nThe user desires this level of technical difficulty: {difficulty} "
-            f"and this number of reactions {reactions}. The company to perform the exercise on is {company_name}."
-        )
-    else:
-        full_prompt = user_input
-
+    session = active_session
+    set_busy(True)
+    dpg.add_text(f"User: {user_input}", parent="chat_display", color=USER_COLOR,
+                 wrap=wrap_width("chat_display"))
+    dpg.set_value("user_input", "")
     step += 1
+    response_tag = f"model_response_{step}"
+    dpg.add_text("DASE: Generating...", parent="chat_display", tag=response_tag,
+                 color=MODEL_COLOR, wrap=wrap_width("chat_display"))
 
-    model_response_tag = f"model_response_{step}"
-
-    dpg.add_text(
-        "DASE: ",
-        parent="chat_display",
-        tag=model_response_tag,
-        color=MODEL_COLOR,
-        wrap=wrap_width("chat_display")
-    )
-
-    def stream_response():
-        model_name = active_model
-        log = active_session_log
-        model_handler = gemini if model_name == "Google Gemini" else openai_helper
+    def generate_response():
         try:
-            # The openai_helper already decodes, so we only need to decode for gemini
-            response_text, _ = model_handler.generate(full_prompt, company_profile_str, log)
-            if model_name == "Google Gemini":
-                response_text = _decode_unicode(response_text)
-        except Exception as e:
-            response_text = f"Error: {e}"
-        finally:
-            dpg.configure_item("loading_indicator", show=False)
-            if dpg.does_item_exist(model_response_tag):
-                dpg.set_value(model_response_tag, f"DASE: {response_text}")
-    threading.Thread(target=stream_response, daemon=True).start()
+            response = session.send(user_input)
+            results.put((session, response_tag, response, None))
+        except Exception as exc:
+            results.put((session, response_tag, None, str(exc)))
+
+    threading.Thread(target=generate_response, daemon=True).start()
+
+
+def process_results():
+    # Called only by the main render loop. No worker calls Dear PyGui.
+    while True:
+        try:
+            session, tag, response, error = results.get_nowait()
+        except Empty:
+            return
+        if session is active_session:
+            if dpg.does_item_exist(tag):
+                dpg.set_value(tag, f"DASE: {error if error else _decode_unicode(response)}")
+            set_busy(False)
 
 
 def back_to_setup_callback():
     """
     Returns to the setup screen from the chat window.
     """
+    if busy:
+        return
     dpg.configure_item("chat_window", show=False)
     dpg.configure_item("setup_window", show=True)
     dpg.set_primary_window("setup_window", True)
@@ -316,6 +283,8 @@ def save_session_callback():
     """
     Saves the current session log to disk.
     """
+    if busy:
+        return
     if active_session_log is None:
         dpg.add_text(
             "No active session to save.",
@@ -351,7 +320,15 @@ with dpg.window(label="Setup", tag="setup_window", width=800, height=700):
     dpg.add_spacer(height=10)
 
     dpg.add_text("Select Model:")
-    dpg.add_combo(MODEL_OPTIONS, default_value=MODEL_OPTIONS[0], tag="model_combo", width=250)
+    default_provider = os.getenv("DASE_DEFAULT_PROVIDER", MODEL_OPTIONS[0])
+    if default_provider not in MODEL_OPTIONS:
+        default_provider = MODEL_OPTIONS[0]
+    dpg.add_combo(MODEL_OPTIONS, default_value=default_provider, tag="model_combo", width=250)
+    dpg.add_spacer(height=10)
+
+    dpg.add_text("Local MLX model (must be available to your localhost server):")
+    dpg.add_input_text(default_value=os.getenv("MLX_MODEL", MLXConfig.model),
+                       tag="mlx_model_input", width=500)
     dpg.add_spacer(height=10)
 
     dpg.add_text("Select Difficulty:")
@@ -363,6 +340,7 @@ with dpg.window(label="Setup", tag="setup_window", width=800, height=700):
     dpg.add_spacer(height=20)
 
     dpg.add_button(label="Start Session", callback=start_session_callback)
+    dpg.add_text("", tag="setup_error", color=(255, 99, 71, 255), wrap=700)
 
 with dpg.window(label="Chat", tag="chat_window", show=False, width=800, height=700):
     with dpg.child_window(tag="chat_display", height=-70):
@@ -376,15 +354,18 @@ with dpg.window(label="Chat", tag="chat_window", show=False, width=800, height=7
             callback=send_message_callback,
             width=-220
         )
-        dpg.add_button(label="Send", callback=send_message_callback, width=60)
-        dpg.add_button(label="End", callback=back_to_setup_callback, width=60)
+        dpg.add_button(label="Send", tag="send_button", callback=send_message_callback, width=60)
+        dpg.add_button(label="End", tag="end_button", callback=back_to_setup_callback, width=60)
         with dpg.group(horizontal=True):
             dpg.add_loading_indicator(tag="loading_indicator", show=False, style=1, radius=1.5)
 
     dpg.add_spacer(height=6)
-    dpg.add_button(label="Save Session", callback=save_session_callback, width=140)
+    dpg.add_button(label="Save Session", tag="save_button", callback=save_session_callback, width=140)
 
 dpg.set_primary_window("setup_window", True)
 dpg.show_viewport()
-dpg.start_dearpygui()
+while dpg.is_dearpygui_running():
+    dpg.run_callbacks(dpg.get_callback_queue())
+    process_results()
+    dpg.render_dearpygui_frame()
 dpg.destroy_context()

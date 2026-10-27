@@ -10,6 +10,7 @@ from rich import print_json
 from pydantic import BaseModel, Field
 from itertools import cycle
 from contextlib import contextmanager
+from dase.paths import DATA_DIR, PROFILES_DIR, SESSION_LOG_DIR
 
 
 class Turn(BaseModel):
@@ -30,8 +31,7 @@ class SessionLog(BaseModel):
         self.metadata[key] = value
 
 # --- Constants and Profile Loading ---
-DATA_DIR = os.path.dirname(__file__)
-JSON_DIR = os.path.join(DATA_DIR, "json")
+JSON_DIR = PROFILES_DIR
 
 COMPANY_MAP = {
     "Well Connect": os.path.join(JSON_DIR, "well_connect.json"),
@@ -175,7 +175,7 @@ def pretty_print(obj):
         print(obj)
 
 
-def save_session(session: SessionLog, directory: str = "session_logs") -> str:
+def save_session(session: SessionLog, directory: str = str(SESSION_LOG_DIR)) -> str:
     """
     Persist a SessionLog to disk as JSON.
 
@@ -190,7 +190,7 @@ def save_session(session: SessionLog, directory: str = "session_logs") -> str:
         raise TypeError("save_session expects a SessionLog instance.")
 
     os.makedirs(directory, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S_%f")
     file_name = f"Session_log({timestamp}).json"
     path = os.path.join(directory, file_name)
 
@@ -221,9 +221,11 @@ def loading_indicator(message: str = "Generating response"):
     stop_event = threading.Event()
     loading_thread = threading.Thread(target=_animate, args=(stop_event, message))
     loading_thread.start()
-    yield
-    stop_event.set()
-    loading_thread.join()
+    try:
+        yield
+    finally:
+        stop_event.set()
+        loading_thread.join()
 
 def select_company_from_cli() -> Tuple[Dict | None, str | None]:
     """

@@ -1,30 +1,91 @@
-# DASE  
-**MS Project**  
+# DASE
 
-This project examines the potential for large language models (LLMs) to improve cybersecurity incident response training through the introduction of dynamic and adaptive adversary behavior. Traditional tabletop exercises, while widely used, are often limited by static structure, predictable outcomes, and the significant effort required to create them, which reduces their effectiveness for preparing defenders against modern and fast-evolving cyber threats. To address these limitations, a proof-of-concept system known as the Dynamic Adversary Simulation Engine (DASE) was developed, in which an LLM is used to simulate a live adversary whose behavior is shaped by user decisions in real time. The system is supported by structured fictional company profiles, a state-aware prompting loop, and a lightweight graphical interface that together enable the generation of unique and contextually grounded scenarios without reliance on predefined scripts. Through these mechanisms, DASE demonstrates that LLM-driven simulations can maintain coherence, adapt responses to defender actions, and produce technically plausible adversary behavior. The final implementation includes session exporting and support for multiple LLM backends within the GUI, allowing improved usability and reproducibility. Qualitative user testing indicated that scenario realism and usability were generally perceived as strong, while also identifying areas for improvement such as interface clarity and constraints on model behavior. Overall, DASE is positioned as an early contribution toward more flexible, realistic, and scalable incident response training that reflects the complexity of real-world cyber incidents.
+Dynamic Adversary Simulation Engine: fictional cybersecurity tabletop exercises
+that adapt to defender decisions. Supports Google Gemini, OpenAI, and local
+Apple MLX inference through a Dear PyGui desktop interface.
 
-## 🚀 How to Run
+## Run the desktop app
 
-### 1. **Install Python (3.12 - 3.13)**  
-   You can download it from [python.org/downloads](https://www.python.org/downloads/).
+For local MLX, open **`run_dase.py`** in VS Code and press **Run Python File** (▶).
+It uses this repo's `.venv`, starts the local server, and opens DASE with MLX
+selected. Closing DASE stops the server it started; an already-running server is
+reused and left running. Install MLX-LM once with
+`.venv/bin/python -m pip install 'mlx-lm==0.32.2'`.
+The first inference can download the selected model. Launcher/server output appears
+in the terminal; Stop with Ctrl+C there to clean up both processes.
 
-### 2. Setup a virtual environment
-   In VS Code ```ctrl+shift+p``` will bring up developer actions. Type ```Python Create Virtual Environment``` to create an environment specific to this installation.  
+For a terminal-only exercise, press **Run Python File** on **`run_dase_cli.py`**.
+It starts or reuses the same local server, uses the same scenario/session logic,
+and opens no GUI. Defaults are Well Connect, low difficulty, and three reactions.
+Use `/save` to export, `/retry` after a failed request, or `/quit` to exit.
+Completed turns are also saved on exit. To diagnose local inference errors:
 
-   
-### 3. **Install dependencies**  
-   ```bash
-   pip install -r requirements.txt
-   ```
-### 4. Set up the Gemini API key
+```bash
+.venv/bin/python run_dase_cli.py --debug
+# Use a server you started separately and leave its lifecycle untouched:
+.venv/bin/python run_dase_cli.py --connect-only --debug
+# Deliberately increase output and history limits for a test run:
+.venv/bin/python run_dase_cli.py --debug --max-tokens 1536 --max-history-chars 64000
+```
 
-- Obtain a free API key from [Google AI Studio](https://aistudio.google.com).  
-- Create a ```.env``` file in the root directory, examine .env.example to understand the structure of this file.
+`--max-tokens` limits each response; `--max-history-chars` limits all input text,
+including the prompt and profile. These are different limits. Increasing either
+can require more memory and time. Use `--help` for company, difficulty, model,
+reaction-count, and timeout options. Debug mode prints tracebacks and local HTTP
+error bodies in your terminal. Failed/partial turns never enter session history.
 
-### 5. Run gui.py  
+Use Python 3.12 or 3.13 from the repository root:
 
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m dase
+```
 
-## Appendix
-- [File Dir](./images/directory_setup.png)
-- Utils.py can be used to query for information about the JSON files. 
+Use `.env.example` as the template for a root `.env` file, preserving any existing
+configuration. Cloud providers require their respective API keys. Local MLX
+requires a running localhost server and no cloud credentials; follow the
+[MLX setup guide](docs/mlx-integration.md).
 
+## Repository map
+
+```text
+dase/                    Application code
+  providers/             Gemini, OpenAI, and local MLX clients
+data/
+  company_profiles/      Fictional company JSON profiles
+  prompts/               Active scenario prompt
+docs/
+  mlx-integration.md     Architecture assessment and MLX setup
+  archive/               Academic report and reference material
+  images/                Documentation images
+tests/                   Offline provider, session, and GUI callback tests
+run_dase.py              Start local MLX and the desktop with one Run button
+run_dase_cli.py          Test local MLX exercises in the terminal without a GUI
+requirements.txt         Current application dependencies
+requirements/legacy.txt  Historical dependency list
+mlx-dase/                Local MLX server environment and scratch script
+```
+
+`.venv/`, `mlx-dase/.venv/`, `.env`, and `session_logs/` stay local and are ignored
+by Git. Virtual environments stay in their original locations.
+
+## Test
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+Tests do not download models or contact cloud APIs.
+
+## Other entry points
+
+```bash
+.venv/bin/python -m dase.providers.gemini
+.venv/bin/python -m dase.providers.openai_cli
+.venv/bin/python -m dase.utils
+```
+
+The [original project description](docs/archive/README-academic.md) and
+[academic report](docs/archive/DASE_Report.pdf) are retained for reference.
+Development work is on `mac-development`; `main` preserves the academic version.
